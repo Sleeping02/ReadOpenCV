@@ -1,0 +1,71 @@
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
+using System;
+using System.Drawing;
+
+class Program
+{
+    static void Main()
+    {
+        string videoPath = "C:\\Users\\SleepingF\\Desktop\\test10.mp4";
+        string outputDirectory = "C:\\Users\\SleepingF\\Desktop\\saveFrames";
+        string faceOutputDirectory = "C:\\Users\\SleepingF\\Desktop\\faceDifferences";
+
+        VideoCapture videoCapture = new VideoCapture(videoPath);
+
+        if (!videoCapture.IsOpened)
+        {
+            Console.WriteLine("Error");
+            return;
+        }
+
+        System.IO.Directory.CreateDirectory(outputDirectory);
+        System.IO.Directory.CreateDirectory(faceOutputDirectory);
+
+        int frameCount = (int)videoCapture.Get(CapProp.FrameCount);
+
+        Mat previousFrame = null;
+
+        for (int i = 0; i < frameCount; i++)
+        {
+            Mat frame = new Mat();
+            videoCapture.Read(frame);
+
+            if (frame.IsEmpty)
+                break;
+
+            string outputPath = System.IO.Path.Combine(outputDirectory, $"frame_{i}.png");
+            CvInvoke.Imwrite(outputPath, frame);
+
+            // Analizar caras y encontrar diferencias faciales
+            if (previousFrame != null)
+            {
+                Mat grayFrame = new Mat();
+                CvInvoke.CvtColor(frame, grayFrame, ColorConversion.Bgr2Gray);
+
+                // Utilizar clasificador de Haar para la detección de caras
+                var faces = CvInvoke.DetectMultiScale(
+                    grayFrame,
+                    scaleFactor: 1.1,
+                    minNeighbors: 3,
+                    flags: 0,
+                    minSize: new Size(30, 30));
+
+                // Dibujar rectángulos alrededor de las caras en el frame original
+                foreach (Rectangle face in faces)
+                {
+                    CvInvoke.Rectangle(frame, face, new MCvScalar(0, 0, 255), 2);
+                }
+
+                string faceOutputPath = System.IO.Path.Combine(faceOutputDirectory, $"faceDiff_{i}.png");
+                CvInvoke.Imwrite(faceOutputPath, frame);
+            }
+
+            previousFrame?.Dispose();
+            previousFrame = frame.Clone();
+        }
+
+        Console.WriteLine("Proceso completado.");
+    }
+}
